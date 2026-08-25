@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>运行配置编辑器 · runtime-config.enc</title>
+<style>
+  :root {
+    --bg: #0d1017;
+    --card: #161a23;
+    --card-2: #1b202c;
+    --border: #262c3a;
+    --border-strong: #36405433;
+    --text: #e6e9f0;
+    --text-dim: #8b93a7;
+    --primary: #5b8cff;
+    --primary-hover: #749dff;
+    --success: #3fb96f;
+    --danger: #e5534b;
+    --warn: #d9a03f;
+    --mono: ui-monospace, SFMono-Regular, Consolas, "Courier New", monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.6 -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  .container { max-width: 980px; margin: 0 auto; padding: 32px 20px 64px; }
+
+  header.page h1 { margin: 0 0 6px; font-size: 22px; }
+  header.page p { margin: 0; color: var(--text-dim); font-size: 13px; }
+  header.page .privacy {
+    margin-top: 10px; display: inline-block; padding: 4px 10px; border-radius: 999px;
+    background: #3fb96f1a; color: var(--success); font-size: 12px; border: 1px solid #3fb96f33;
+  }
+
+  ol.steps {
+    list-style: none; display: flex; gap: 8px; padding: 0; margin: 26px 0 18px; flex-wrap: wrap;
+  }
+  ol.steps li {
+    display: flex; align-items: center; gap: 8px; padding: 6px 14px 6px 8px; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--text-dim); font-size: 13px; background: var(--card);
+  }
+  ol.steps li .num {
+    width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 12px; background: var(--border); color: var(--text-dim);
+  }
+  ol.steps li.current { border-color: var(--primary); color: var(--text); }
+  ol.steps li.current .num { background: var(--primary); color: #fff; }
+  ol.steps li.done { border-color: #3fb96f66; color: var(--success); }
+  ol.steps li.done .num { background: #3fb96f; color: #fff; }
+
+  section.card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 22px; margin-bottom: 18px;
+  }
+  section.card > h2 { margin: 0 0 4px; font-size: 16px; }
+  section.card > .hint { margin: 0 0 16px; color: var(--text-dim); font-size: 12.5px; }
+  .hidden { display: none !important; }
+
+  label.field-label {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-size: 12.5px; color: var(--text-dim); margin: 14px 0 6px;
+  }
+  label.field-label .load-file { color: var(--primary); cursor: pointer; }
+  label.field-label .load-file:hover { text-decoration: underline; }
+  label.field-label .load-file input { display: none; }
+
+  textarea, input[type="text"] {
+    width: 100%; background: var(--card-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 12px; font: 12.5px/1.5 var(--mono); outline: none;
+    transition: border-color .15s;
+  }
+  textarea:focus, input[type="text"]:focus { border-color: var(--primary); }
+  textarea { resize: vertical; }
+  textarea::placeholder, input::placeholder { color: #5a6275; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px; border: none; border-radius: 8px;
+    padding: 9px 18px; font-size: 13.5px; font-weight: 500; cursor: pointer;
+    background: var(--card-2); color: var(--text); border: 1px solid var(--border);
+    transition: background .15s, border-color .15s;
+  }
+  .btn:hover { border-color: var(--primary); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+
+  #message {
+    margin-top: 14px; padding: 10px 14px; border-radius: 8px; font-size: 13px; display: none;
+  }
+  #message.error { display: block; background: #e5534b1a; border: 1px solid #e5534b44; color: #ff8f88; }
+  #message.success { display: block; background: #3fb96f1a; border: 1px solid #3fb96f44; color: #7ed9a3; }
+  #message.warn { display: block; background: #d9a03f1a; border: 1px solid #d9a03f44; color: #ecc27a; }
+
+  .stats { color: var(--text-dim); font-size: 12.5px; margin-bottom: 12px; }
+  .stats b { color: var(--text); font-weight: 600; }
+
+  .cfg-row {
+    display: grid; grid-template-columns: minmax(220px, 34%) 1fr auto; gap: 10px; align-items: center;
+    padding: 7px 10px; border-radius: 8px; border-bottom: 1px solid var(--border);
+  }
+  .cfg-row:last-child { border-bottom: none; }
+  .cfg-row:hover { background: var(--card-2); }
+  .cfg-row.sensitive .cfg-key { color: var(--warn); }
+  .cfg-row.sensitive { background: #d9a03f0d; }
+  .cfg-key {
+    font-family: var(--mono); font-size: 12.5px; word-break: break-all; color: #aab3c8;
+    user-select: all;
+  }
+  .cfg-row .cfg-value { padding: 7px 10px; }
+  .btn-remove {
+    background: none; border: 1px solid transparent; color: var(--text-dim); border-radius: 6px;
+    padding: 5px 10px; cursor: pointer; font-size: 12.5px;
+  }
+  .btn-remove:hover { color: var(--danger); border-color: #e5534b55; background: #e5534b14; }
+
+  .add-block {
+    display: grid; grid-template-columns: minmax(220px, 34%) 1fr auto; gap: 10px;
+    margin-top: 16px; padding-top: 16px; border-top: 1px dashed var(--border);
+  }
+  .toolbar { display: flex; gap: 10px; margin-top: 18px; flex-wrap: wrap; }
+
+  .diff { margin: 14px 0 0; font-size: 13px; }
+  .diff h3 { margin: 0 0 8px; font-size: 13px; color: var(--text-dim); font-weight: 600; }
+  .diff ul { margin: 0; padding: 0; list-style: none; }
+  .diff li { padding: 5px 0; border-bottom: 1px solid var(--border); font-family: var(--mono); font-size: 12.5px; word-break: break-all; }
+  .diff li:last-child { border-bottom: none; }
+  .diff .tag { display: inline-block; min-width: 40px; text-align: center; border-radius: 4px; font-size: 11px; padding: 1px 6px; margin-right: 8px; font-family: inherit; }
+  .diff .tag-modified { background: #5b8cff22; color: var(--primary); }
+  .diff .tag-added { background: #3fb96f22; color: var(--success); }
+  .diff .tag-removed { background: #e5534b22; color: var(--danger); }
+  .diff .old { color: var(--text-dim); text-decoration: line-through; }
+  .diff .arrow { color: var(--text-dim); margin: 0 6px; }
+  .diff .unchanged { color: var(--text-dim); }
+
+  .output-actions { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+  .notice {
+    margin-top: 16px; padding: 10px 14px; border-radius: 8px; font-size: 12.5px;
+    background: #d9a03f14; border: 1px solid #d9a03f33; color: #ecc27a;
+  }
+  footer.page { margin-top: 28px; color: #5a6275; font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header class="page">
+    <h1>运行配置编辑器</h1>
+    <p>解密并编辑后端加密运行配置（data/runtime-config.enc，AES-256-GCM 信封）。导出后覆盖原文件并重启后端生效。</p>
+    <span class="privacy">纯浏览器本地运算，不发起任何网络请求，密钥不会离开本机</span>
+  </header>
+
+  <ol class="steps">
+    <li id="step-chip-1" class="current"><span class="num">1</span>粘贴密钥与配置</li>
+    <li id="step-chip-2"><span class="num">2</span>编辑配置项</li>
+    <li id="step-chip-3"><span class="num">3</span>导出加密文件</li>
+  </ol>
+
+  <!-- 第一步：粘贴密钥与加密配置 -->
+  <section class="card" id="step-1">
+    <h2>粘贴密钥与加密配置</h2>
+    <p class="hint">密钥即 <code>runtime-config.key</code> 的完整内容（43 位 base64url 字符）；配置即 <code>runtime-config.enc</code> 的完整 JSON。也可以点击右侧"从文件加载"直接选择文件。</p>
+
+    <label class="field-label">
+      <span>密钥（runtime-config.key · base64url）</span>
+      <span class="load-file">从文件加载<input type="file" id="key-file"></span>
+    </label>
+    <textarea id="key-input" rows="2" spellcheck="false"
+      placeholder="粘贴 runtime-config.key 的内容，例如 6Zf7xkQ...（43 位无空格字符串）"></textarea>
+
+    <label class="field-label">
+      <span>加密配置（runtime-config.enc · JSON 信封）</span>
+      <span class="load-file">从文件加载<input type="file" id="config-file"></span>
+    </label>
+    <textarea id="config-input" rows="8" spellcheck="false"
+      placeholder='粘贴 runtime-config.enc 的内容，形如 { "version": "1", "iv": "...", "ciphertext": "..." }'></textarea>
+
+    <div class="toolbar">
+      <button class="btn btn-primary" id="decrypt-btn">解密</button>
+      <button class="btn" id="reset-btn">清空重来</button>
+    </div>
+    <div id="message" role="alert"></div>
+  </section>
+
+  <!-- 第二步：编辑配置项 -->
+  <section class="card hidden" id="step-2">
+    <h2>编辑配置项</h2>
+    <p class="hint">直接修改右侧输入框的值即可；琥珀色标记的是敏感项（secret / password / apikey / masterkey / pepper）。键名不可修改，如需调整请删除后重新添加。</p>
+    <div class="stats" id="stats"></div>
+    <div id="config-rows"></div>
+    <div class="add-block">
+      <input type="text" id="new-key" placeholder="新配置键，如 captcha.turnstileAllowedHostnames" spellcheck="false">
+      <input type="text" id="new-value" placeholder="值" spellcheck="false">
+      <button class="btn" id="add-btn">添加</button>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" id="export-btn">重新加密并导出</button>
+    </div>
+  </section>
+
+  <!-- 第三步：导出 -->
+  <section class="card hidden" id="step-3">
+    <h2>导出</h2>
+    <p class="hint">将下面的 JSON 内容完整覆盖写入 <code>runtime-config.enc</code>（或直接下载），然后重启后端进程。</p>
+    <div class="diff" id="diff"></div>
+    <textarea id="output" rows="10" readonly spellcheck="false"></textarea>
+    <div class="output-actions">
+      <button class="btn btn-primary" id="copy-btn">复制 JSON</button>
+      <button class="btn" id="download-btn">下载 runtime-config.enc</button>
+    </div>
+    <div class="notice">
+      注意：覆盖原文件前建议先备份；导出使用了新的随机 IV，但密钥保持不变——请确保 <code>runtime-config.key</code> 与该密文配对。若缺少 bootstrap.completed 标记会自动补为 true。修改需重启后端才生效。
+    </div>
+  </section>
+
+  <footer class="page">与后端 RuntimeConfigStore 格式兼容：AES-256-GCM · 12 字节随机 IV · 128 位认证标签 · base64url</footer>
+</div>
+
+<script>
+'use strict';
+
+/** 命中这些关键字的配置项视为敏感项，在编辑区以琥珀色标记。 */
+const SENSITIVE_PATTERN = /(secret|password|apikey|api-key|masterkey|pepper)/i;
+const GCM_TAG_BYTES = 16;
+const IV_BYTES = 12;
+const KEY_BYTES = 32;
+
+/** 页面状态：解密成功后保存原始键值快照，用于导出时的差异摘要。 */
+let originalValues = null;
+
+const $ = (id) => document.getElementById(id);
+
+/* ---------------- base64url 与字节转换 ---------------- */
+
+/** 把 base64url 字符串解码为 Uint8Array，兼容无填充写法。 */
+function b64urlDecode(text) {
+  let normalized = String(text).trim().replace(/-/g, '+').replace(/_/g, '/');
+  while (normalized.length % 4 !== 0) normalized += '=';
+  let binary;
+  try {
+    binary = atob(normalized);
+  } catch {
+    throw new Error('内容不是有效的 base64url 字符串，请检查是否粘贴完整');
+  }
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+/** 把字节编码为无填充 base64url 字符串。 */
+function b64urlEncode(bytes) {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/* ---------------- 加解密（与 RuntimeConfigStore 对齐） ---------------- */
+
+/** 校验并读取密钥输入框内容，返回 32 字节密钥。 */
+function readKeyInput() {
+  const text = $('key-input').value.trim();
+  if (!text) throw new Error('请先粘贴密钥文件（runtime-config.key）的内容');
+  const keyBytes = b64urlDecode(text);
+  if (keyBytes.length !== KEY_BYTES) {
+    throw new Error(`密钥长度应为 ${KEY_BYTES} 字节（base64url 后 43 个字符），当前为 ${keyBytes.length} 字节`);
+  }
+  return keyBytes;
+}
+
+/** 解密信封 JSON，返回键值对对象。 */
+async function decryptEnvelope(keyBytes, envelopeText) {
+  let envelope;
+  try {
+    envelope = JSON.parse(envelopeText);
+  } catch {
+    throw new Error('配置文件内容不是合法 JSON，请粘贴完整的 runtime-config.enc 内容');
+  }
+  if (typeof envelope !== 'object' || envelope === null || Array.isArray(envelope)) {
+    throw new Error('信封格式不正确');
+  }
+  if (envelope.version !== '1') throw new Error(`不支持的信封版本: ${envelope.version}`);
+  if (!envelope.iv || !envelope.ciphertext) throw new Error('信封缺少 iv 或 ciphertext 字段');
+  const iv = b64urlDecode(envelope.iv);
+  const ciphertext = b64urlDecode(envelope.ciphertext);
+  if (iv.length !== IV_BYTES) throw new Error(`IV 长度异常: ${iv.length} 字节（应为 ${IV_BYTES}）`);
+  if (ciphertext.length <= GCM_TAG_BYTES) throw new Error('密文长度异常');
+  const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['decrypt']);
+  let plainBuffer;
+  try {
+    plainBuffer = await crypto.subtle.decrypt(
+      { name: 'AES-GCM', iv, tagLength: 128 }, cryptoKey, ciphertext);
+  } catch {
+    throw new Error('解密失败：密钥与密文不匹配，或文件已损坏');
+  }
+  let values;
+  try {
+    values = JSON.parse(new TextDecoder().decode(plainBuffer));
+  } catch {
+    throw new Error('解密后的明文不是合法 JSON');
+  }
+  if (typeof values !== 'object' || values === null || Array.isArray(values)) {
+    throw new Error('解密后的明文不是键值对对象');
+  }
+  return values;
+}
+
+/** 用新随机 IV 加密键值对，返回与后端一致的 { iv, ciphertext, version } 信封对象。 */
+async function encryptValues(keyBytes, values) {
+  const iv = crypto.getRandomValues(new Uint8Array(IV_BYTES));
+  const cryptoKey = await crypto.subtle.importKey('raw', keyBytes, 'AES-GCM', false, ['encrypt']);
+  const plaintext = new TextEncoder().encode(JSON.stringify(values, null, 2));
+  const encrypted = new Uint8Array(await crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv, tagLength: 128 }, cryptoKey, plaintext));
+  return { iv: b64urlEncode(iv), ciphertext: b64urlEncode(encrypted), version: '1' };
+}
+
+/* ---------------- 消息与步骤状态 ---------------- */
+
+function showMessage(type, text) {
+  const box = $('message');
+  box.className = type;
+  box.textContent = text;
+}
+
+function clearMessage() {
+  $('message').className = '';
+  $('message').textContent = '';
+}
+
+/** 切换顶部步骤指示条状态：1 完成、2/3 当前。 */
+function setStep(current) {
+  const states = { 1: ['done', '', ''], 2: ['done', 'current', ''], 3: ['done', 'done', 'current'] };
+  ['1', '2', '3'].forEach((n, i) => {
+    $('step-chip-' + n).className = states[current][i];
+  });
+}
+
+/* ---------------- 编辑表格 ---------------- */
+
+/** 渲染解密后的键值对为可编辑行，按键名字典序排列。 */
+function renderTable(values) {
+  const container = $('config-rows');
+  container.innerHTML = '';
+  const keys = Object.keys(values).sort((a, b) => a.localeCompare(b));
+  for (const key of keys) appendRow(container, key, String(values[key]));
+  const sensitiveCount = keys.filter((k) => SENSITIVE_PATTERN.test(k)).length;
+  $('stats').innerHTML = `共 <b>${keys.length}</b> 个配置项，其中 <b>${sensitiveCount}</b> 个敏感项`;
+}
+
+/** 追加一行编辑项。 */
+function appendRow(container, key, value) {
+  const row = document.createElement('div');
+  row.className = 'cfg-row' + (SENSITIVE_PATTERN.test(key) ? ' sensitive' : '');
+  const keyEl = document.createElement('code');
+  keyEl.className = 'cfg-key';
+  keyEl.textContent = key;
+  const valueEl = document.createElement('input');
+  valueEl.type = 'text';
+  valueEl.className = 'cfg-value';
+  valueEl.value = value;
+  valueEl.spellcheck = false;
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'btn-remove';
+  removeBtn.textContent = '删除';
+  removeBtn.title = '删除该配置项';
+  removeBtn.addEventListener('click', () => row.remove());
+  row.append(keyEl, valueEl, removeBtn);
+  container.appendChild(row);
+}
+
+/** 收集当前编辑区所有键值对（值做 trim，避免误粘贴空格导致后端校验失败）。 */
+function collectValues() {
+  const values = {};
+  for (const row of document.querySelectorAll('#config-rows .cfg-row')) {
+    const key = row.querySelector('.cfg-key').textContent.trim();
+    if (key) values[key] = row.querySelector('.cfg-value').value.trim();
+  }
+  return values;
+}
+
+/* ---------------- 差异摘要 ---------------- */
+
+/** 比较原始快照与导出内容，渲染修改/新增/删除摘要。 */
+function renderDiff(original, next) {
+  const modified = [], added = [], removed = [];
+  for (const key of Object.keys(next)) {
+    if (!(key in original)) added.push(key);
+    else if (String(original[key]) !== next[key]) modified.push(key);
+  }
+  for (const key of Object.keys(original)) {
+    if (!(key in next)) removed.push(key);
+  }
+  const parts = [];
+  const fmt = (value) => {
+    const text = String(value);
+    return text.length > 60 ? text.slice(0, 60) + '…' : (text === '' ? '(空)' : text);
+  };
+  if (modified.length) {
+    parts.push('<h3>修改 ' + modified.length + ' 项</h3><ul>' + modified.map((key) =>
+      `<li><span class="tag tag-modified">改</span>${escapeHtml(key)}<br><span class="old">${escapeHtml(fmt(original[key]))}</span><span class="arrow">→</span>${escapeHtml(fmt(next[key]))}</li>`).join('') + '</ul>');
+  }
+  if (added.length) {
+    parts.push('<h3>新增 ' + added.length + ' 项</h3><ul>' + added.map((key) =>
+      `<li><span class="tag tag-added">增</span>${escapeHtml(key)} = ${escapeHtml(fmt(next[key]))}</li>`).join('') + '</ul>');
+  }
+  if (removed.length) {
+    parts.push('<h3>删除 ' + removed.length + ' 项</h3><ul>' + removed.map((key) =>
+      `<li><span class="tag tag-removed">删</span>${escapeHtml(key)}</li>`).join('') + '</ul>');
+  }
+  $('diff').innerHTML = parts.length ? parts.join('')
+    : '<h3>未检测到改动</h3><span class="unchanged">内容与解密时完全一致，仅 IV 被重新生成。</span>';
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, (ch) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]);
+}
+
+/* ---------------- 事件处理 ---------------- */
+
+/** 解密按钮：读取密钥与信封，成功后进入编辑步骤。 */
+async function onDecrypt() {
+  clearMessage();
+  let keyBytes;
+  try {
+    keyBytes = readKeyInput();
+  } catch (error) {
+    showMessage('error', error.message);
+    return;
+  }
+  const configText = $('config-input').value.trim();
+  if (!configText) {
+    showMessage('error', '请先粘贴加密配置文件（runtime-config.enc）的内容');
+    return;
+  }
+  let values;
+  try {
+    values = await decryptEnvelope(keyBytes, configText);
+  } catch (error) {
+    showMessage('error', error.message);
+    return;
+  }
+  originalValues = { ...values };
+  renderTable(values);
+  $('step-2').classList.remove('hidden');
+  $('step-3').classList.add('hidden');
+  $('output').value = '';
+  setStep(2);
+  showMessage('success', `解密成功：读取到 ${Object.keys(values).length} 个配置项，请在下方编辑。`);
+  $('step-2').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** 添加新配置键：校验非空且不重复。 */
+function onAdd() {
+  clearMessage();
+  const key = $('new-key').value.trim();
+  const value = $('new-value').value.trim();
+  if (!key) {
+    showMessage('error', '请填写新配置项的键名');
+    return;
+  }
+  const existing = new Set(
+    Array.from(document.querySelectorAll('#config-rows .cfg-key')).map((el) => el.textContent.trim()));
+  if (existing.has(key)) {
+    showMessage('error', `键已存在: ${key}（请直接在上方修改它的值）`);
+    return;
+  }
+  appendRow($('config-rows'), key, value);
+  $('new-key').value = '';
+  $('new-value').value = '';
+  const stats = $('stats');
+  const count = document.querySelectorAll('#config-rows .cfg-row').length;
+  stats.innerHTML = stats.innerHTML.replace(/<b>\d+<\/b> 个配置项/, `<b>${count}</b> 个配置项`);
+  showMessage('success', `已添加 ${key}`);
+}
+
+/** 导出按钮：收集编辑结果，重新加密并展示差异摘要与输出。 */
+async function onExport() {
+  clearMessage();
+  let keyBytes;
+  try {
+    keyBytes = readKeyInput();
+  } catch (error) {
+    showMessage('error', error.message);
+    return;
+  }
+  const values = collectValues();
+  // 与后端 RuntimeConfigStore.write 语义一致：写入时确保初始化完成标记存在。
+  if (!('bootstrap.completed' in values)) values['bootstrap.completed'] = 'true';
+  try {
+    const envelope = await encryptValues(keyBytes, values);
+    $('output').value = JSON.stringify(envelope, null, 2);
+  } catch (error) {
+    showMessage('error', '加密失败: ' + error.message);
+    return;
+  }
+  renderDiff(originalValues, values);
+  $('step-3').classList.remove('hidden');
+  setStep(3);
+  showMessage('success', '已生成新的加密配置，请复制或下载后覆盖原文件。');
+  $('step-3').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/** 复制导出 JSON，优先使用剪贴板 API，失败时回退到 execCommand。 */
+async function onCopy() {
+  const text = $('output').value;
+  if (!text) return;
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch {
+    const helper = document.createElement('textarea');
+    helper.value = text;
+    helper.style.position = 'fixed';
+    helper.style.opacity = '0';
+    document.body.appendChild(helper);
+    helper.select();
+    ok = document.execCommand('copy');
+    helper.remove();
+  }
+  const button = $('copy-btn');
+  const originalLabel = button.textContent;
+  button.textContent = ok ? '已复制' : '复制失败';
+  setTimeout(() => { button.textContent = originalLabel; }, 1600);
+  if (!ok) showMessage('warn', '自动复制失败，请手动全选输出框内容复制。');
+}
+
+/** 下载导出 JSON 为 runtime-config.enc 文件。 */
+function onDownload() {
+  const text = $('output').value;
+  if (!text) return;
+  const blob = new Blob([text], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'runtime-config.enc';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+/** 从本地文件加载内容到指定文本框。 */
+function bindFileLoader(inputId, textareaId) {
+  $(inputId).addEventListener('change', () => {
+    const file = $(inputId).files && $(inputId).files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { $(textareaId).value = String(reader.result || '').trim(); };
+    reader.onerror = () => showMessage('error', `读取文件失败: ${file.name}`);
+    reader.readAsText(file);
+  });
+}
+
+/** 清空所有状态，回到第一步。 */
+function onReset() {
+  if (originalValues && !confirm('确定要清空所有内容并重新开始吗？当前编辑内容将丢失。')) return;
+  $('key-input').value = '';
+  $('config-input').value = '';
+  $('new-key').value = '';
+  $('new-value').value = '';
+  $('output').value = '';
+  $('diff').innerHTML = '';
+  $('config-rows').innerHTML = '';
+  $('stats').innerHTML = '';
+  originalValues = null;
+  $('step-2').classList.add('hidden');
+  $('step-3').classList.add('hidden');
+  setStep(1);
+  clearMessage();
+}
+
+$('decrypt-btn').addEventListener('click', onDecrypt);
+$('add-btn').addEventListener('click', onAdd);
+$('export-btn').addEventListener('click', onExport);
+$('copy-btn').addEventListener('click', onCopy);
+$('download-btn').addEventListener('click', onDownload);
+$('reset-btn').addEventListener('click', onReset);
+$('new-value').addEventListener('keydown', (event) => { if (event.key === 'Enter') onAdd(); });
+bindFileLoader('key-file', 'key-input');
+bindFileLoader('config-file', 'config-input');
+</script>
+</body>
+</html>
